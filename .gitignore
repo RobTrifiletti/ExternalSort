@@ -1,0 +1,8 @@
+*.class
+
+# Package Files #
+/bin/
+/data
+.DS_Store
+*.cache
+*.jar
