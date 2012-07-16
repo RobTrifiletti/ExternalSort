@@ -104,10 +104,8 @@ public class ExternalSort implements Runnable {
 			System.out.println("Inputfile: " + inputfileName + " not found");
 			return;
 		}
-		File data = new File("data");
-		data.mkdir();
 		
-		this.outputFile = new File(data, outputfileName);
+		this.outputFile = new File(outputfileName);
 		this.comparator = comparator;
 	}
 
