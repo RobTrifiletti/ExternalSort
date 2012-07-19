@@ -48,52 +48,7 @@ public class ExternalSort implements Runnable {
 	private Charset charset;
 	private File inputFile, outputFile;
 	private Comparator<String> comparator;
-
-	public static void main(String[] args) {
-
-		boolean verbose = false;
-		int maxtmpfiles = DEFAULTMAXTEMPFILES;
-		Charset charset = Charset.defaultCharset();
-		String inputfileName = null;
-		String outputfileName = null;
-		for (int param = 0; param < args.length; ++param) {
-			if (args[param].equals("-v") ||  args[param].equals("--verbose")) {
-				verbose = true;
-			}	
-			else if ((args[param].equals("-t") || args[param].equals("--maxtmpfiles"))
-					&& args.length > param + 1) {
-				param++;
-				maxtmpfiles = Integer.parseInt(args[param]);  
-			}
-			else if ((args[param].equals("-c") || args[param].equals("--charset"))
-					&& args.length > param + 1) {
-				param++;
-				charset = Charset.forName(args[param]);
-			}
-			else {	
-				if (inputfileName == null) {
-					inputfileName = args[param];
-				}
-
-				else if (outputfileName == null) {
-					outputfileName = args[param];
-				}
-
-				else System.out.println("Unparsed: " + args[param]); 
-			}
-		}
-
-		if(outputfileName == null) {
-			outputfileName = "out.txt";
-		}
-
-		Comparator<String> wireComparator = new WireComparator();
-		ExternalSort sorter = new ExternalSort(verbose, maxtmpfiles, charset,
-				inputfileName, outputfileName, wireComparator);
-
-		sorter.run();
-	}
-
+	
 	public ExternalSort(boolean verbose, int maxtmpfiles, Charset charset,
 			String inputfileName, String outputfileName, Comparator<String> comparator){
 		this.verbose = verbose;
@@ -108,28 +63,23 @@ public class ExternalSort implements Runnable {
 		this.outputFile = new File(outputfileName);
 		this.comparator = comparator;
 	}
+	
+	public void run() {
+		List<File> l;
+		try {
+			l = sortInBatch(inputFile,
+					comparator, maxtmpfiles, charset, null);
+			if(verbose) {
+				System.out.println("created "+ l.size() + " tmp files");
+			}
 
-	// we divide the file into small blocks. If the blocks
-	// are too small, we shall create too many temporary files. 
-	// If they are too big, we shall be using too much memory. 
-	public long estimateBestSizeOfBlocks(File inputfile, int maxtmpfiles) {
-		long filesize = inputfile.length() * bytesPerChar;
+			mergeSortedFiles(l, outputFile, comparator, charset);
 
-		// we don't want to open up much more than maxtmpfiles temporary files, better run
-		// out of memory first.
-		long blocksize = filesize / maxtmpfiles + 
-				(filesize % maxtmpfiles == 0 ? 0 : 1) ;
-
-		// on the other hand, we don't want to create many temporary files
-		// for naught. If blocksize is smaller than half the free memory, grow it.
-		long freemem = Runtime.getRuntime().freeMemory();
-
-		if( blocksize < freemem/2) {
-			blocksize = freemem/2;
-		} 
-		return blocksize;
+		} catch (IOException e) {
+			System.out.println("An IO error occurred while sorting the file");
+		}
 	}
-
+	
 	/**
 	 * This will simply load the file by blocks of x rows, then
 	 * sort them in-memory, and write the result to 
@@ -182,7 +132,28 @@ public class ExternalSort implements Runnable {
 
 		return files;
 	}
+	
+	// we divide the file into small blocks. If the blocks
+	// are too small, we shall create too many temporary files. 
+	// If they are too big, we shall be using too much memory. 
+	public long estimateBestSizeOfBlocks(File inputfile, int maxtmpfiles) {
+		long filesize = inputfile.length() * bytesPerChar;
 
+		// we don't want to open up much more than maxtmpfiles temporary files, better run
+		// out of memory first.
+		long blocksize = filesize / maxtmpfiles + 
+				(filesize % maxtmpfiles == 0 ? 0 : 1) ;
+
+		// on the other hand, we don't want to create many temporary files
+		// for naught. If blocksize is smaller than half the free memory, grow it.
+		long freemem = Runtime.getRuntime().freeMemory();
+
+		if( blocksize < freemem/2) {
+			blocksize = freemem/2;
+		} 
+		return blocksize;
+	}
+	
 	/**
 	 * Sort a list and save it to a temporary file 
 	 *
@@ -212,7 +183,7 @@ public class ExternalSort implements Runnable {
 
 		return newtmpfile;
 	}
-
+	
 	/**
 	 * This merges a bunch of temporary flat files 
 	 * @param files
@@ -261,20 +232,49 @@ public class ExternalSort implements Runnable {
 		return rowcounter;
 	}
 
-	public void run() {
-		List<File> l;
-		try {
-			l = sortInBatch(inputFile,
-					comparator, maxtmpfiles, charset, null);
-			if(verbose) {
-				System.out.println("created "+ l.size() + " tmp files");
+
+	public static void main(String[] args) {
+
+		boolean verbose = false;
+		int maxtmpfiles = DEFAULTMAXTEMPFILES;
+		Charset charset = Charset.defaultCharset();
+		String inputfileName = null;
+		String outputfileName = null;
+		for (int param = 0; param < args.length; ++param) {
+			if (args[param].equals("-v") ||  args[param].equals("--verbose")) {
+				verbose = true;
+			}	
+			else if ((args[param].equals("-t") || args[param].equals("--maxtmpfiles"))
+					&& args.length > param + 1) {
+				param++;
+				maxtmpfiles = Integer.parseInt(args[param]);  
 			}
+			else if ((args[param].equals("-c") || args[param].equals("--charset"))
+					&& args.length > param + 1) {
+				param++;
+				charset = Charset.forName(args[param]);
+			}
+			else {	
+				if (inputfileName == null) {
+					inputfileName = args[param];
+				}
 
-			mergeSortedFiles(l, outputFile, comparator, charset);
+				else if (outputfileName == null) {
+					outputfileName = args[param];
+				}
 
-		} catch (IOException e) {
-			System.out.println("An IO error occurred while sorting the file");
+				else System.out.println("Unparsed: " + args[param]); 
+			}
 		}
 
+		if(outputfileName == null) {
+			outputfileName = "data/out.txt";
+		}
+
+		Comparator<String> wireComparator = new WireComparator();
+		
+		ExternalSort sorter = new ExternalSort(verbose, maxtmpfiles, charset,
+				inputfileName, outputfileName, wireComparator);
+		sorter.run();
 	}
 }
