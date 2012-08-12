@@ -50,17 +50,18 @@ public class ExternalSort implements Runnable {
 	private Comparator<String> comparator;
 	
 	public ExternalSort(boolean verbose, int maxtmpfiles, Charset charset,
-			String inputfileName, String outputfileName, Comparator<String> comparator){
+			File inputFile, File outputFile, Comparator<String> comparator){
 		this.verbose = verbose;
-		this.maxtmpfiles = maxtmpfiles;
-		this.charset = charset;
-		this.inputFile = new File(inputfileName);
-		if (!inputFile.exists()){
-			System.out.println("Inputfile: " + inputfileName + " not found");
-			return;
+		if (maxtmpfiles == 0) {
+			this.maxtmpfiles = DEFAULTMAXTEMPFILES;
+		}
+		else {
+			this.maxtmpfiles = maxtmpfiles;
 		}
 		
-		this.outputFile = new File(outputfileName);
+		this.charset = charset;
+		this.inputFile = inputFile;
+		this.outputFile = outputFile;
 		this.comparator = comparator;
 	}
 	
@@ -230,51 +231,5 @@ public class ExternalSort implements Runnable {
 		}
 
 		return rowcounter;
-	}
-
-
-	public static void main(String[] args) {
-
-		boolean verbose = false;
-		int maxtmpfiles = DEFAULTMAXTEMPFILES;
-		Charset charset = Charset.defaultCharset();
-		String inputfileName = null;
-		String outputfileName = null;
-		for (int param = 0; param < args.length; ++param) {
-			if (args[param].equals("-v") ||  args[param].equals("--verbose")) {
-				verbose = true;
-			}	
-			else if ((args[param].equals("-t") || args[param].equals("--maxtmpfiles"))
-					&& args.length > param + 1) {
-				param++;
-				maxtmpfiles = Integer.parseInt(args[param]);  
-			}
-			else if ((args[param].equals("-c") || args[param].equals("--charset"))
-					&& args.length > param + 1) {
-				param++;
-				charset = Charset.forName(args[param]);
-			}
-			else {	
-				if (inputfileName == null) {
-					inputfileName = args[param];
-				}
-
-				else if (outputfileName == null) {
-					outputfileName = args[param];
-				}
-
-				else System.out.println("Unparsed: " + args[param]); 
-			}
-		}
-
-		if(outputfileName == null) {
-			outputfileName = "data/out.txt";
-		}
-
-		Comparator<String> wireComparator = new WireComparator();
-		
-		ExternalSort sorter = new ExternalSort(verbose, maxtmpfiles, charset,
-				inputfileName, outputfileName, wireComparator);
-		sorter.run();
 	}
 }
